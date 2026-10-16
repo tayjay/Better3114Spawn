@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Hints;
 using InventorySystem;
 using LabApi.Events.Arguments.PlayerEvents;
 using LabApi.Features.Extensions;
@@ -111,7 +112,7 @@ public class SpawnHandler
             RoleTemplate = template,
             Position = position,
             Rotation = rotation,
-            PreventRevealSeconds = Core.Instance.Config.Scp3114PreventRevealTime,
+            PreventRevealSeconds = Math.Max(0,Core.Instance.Config.Scp3114PreventRevealTime),
             Generation = _generation,
         };
 
@@ -200,11 +201,27 @@ public class SpawnHandler
             replacement.ScpRole._identity.ServerResendIdentity();
             if (!HasPreparedDisguise(replacement)) return;
             applied = true;
-            replacement.Scp.SendHint(Core.Instance.Config.Translate("scp3114_blend_in_hint",$"{TimeSpan.FromSeconds(replacement.PreventRevealSeconds):mm\\:ss}"), 5f);
+            
             if (HasPreparedDisguise(replacement) && ev.SpawnFlags.HasFlag(RoleSpawnFlags.AssignInventory))
                 InventoryItemProvider.ServerGrantLoadout(replacement.Scp.ReferenceHub, replacement.RoleTemplate);
-            // Native loadout callbacks can change roles. Do not write to either
-            // player after calling ServerGrantLoadout.
+            // Native loadout callbacks can change either life or disable the plugin.
+            if (!HasPreparedDisguise(replacement)) return;
+            
+            double remaining = Math.Max(0,
+                replacement.PreventRevealSeconds 
+                - Round.Duration.TotalSeconds);
+            if (remaining > 0)
+            {
+                replacement.Scp.SendHint(
+                    Core.Instance.Config.Translate("scp3114_blend_in_hint", "{0}"),
+                    new HintParameter[]
+                    {
+                        TimespanHintParameter.FromOffset(
+                            remaining, @"mm\:ss", negate: false)
+                    },
+                    duration: 5f);
+            }
+            
         }
         catch (Exception exception)
         {
