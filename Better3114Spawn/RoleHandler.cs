@@ -1,58 +1,62 @@
 ﻿using System;
 using LabApi.Events.Arguments.PlayerEvents;
 using LabApi.Events.Arguments.Scp3114Events;
-using LabApi.Events.Arguments.ScpEvents;
 using LabApi.Features.Wrappers;
-using PlayerRoles;
 using PlayerRoles.PlayableScps.Scp3114;
 using PlayerStatsSystem;
-using UnityEngine;
 
 namespace Better3114Spawn;
 
 public class RoleHandler
 {
-    
     public void OnRevealing(Scp3114RevealingEventArgs ev)
     {
         if (ev.Forced) return;
-        if(ev.Player.GetDataStore<Scp3114Data>().CanRevealEarly) return;
+
+        Scp3114Data data = ev.Player.GetDataStore<Scp3114Data>();
+        if (data.CanRevealEarly && data.EarlyRevealLifeId == ev.Player.LifeId) return;
         if (Round.Duration >= TimeSpan.FromSeconds(Core.Instance.Config.Scp3114PreventRevealTime)) return;
+
         ev.IsAllowed = false;
-        ev.Player.SendHint($"You must wait {(TimeSpan.FromSeconds(Core.Instance.Config.Scp3114PreventRevealTime) - Round.Duration):mm\\:ss} before revealing.", 5f);
+        ev.Player.SendHint(Core.Instance.Config.Translate("scp3114_wait_hint",$"{TimeSpan.FromSeconds(Core.Instance.Config.Scp3114PreventRevealTime) - Round.Duration:mm\\:ss}"), 5f);
     }
 
     public void OnHurt(PlayerHurtEventArgs ev)
     {
-        if(ev.Player.Role != RoleTypeId.Scp3114) return;
-        if(Round.Duration >= TimeSpan.FromSeconds(Core.Instance.Config.Scp3114PreventRevealTime)) return;
-        if(ev.Attacker == null) return;
-        if(ev.Attacker.IsHost) return;
-        if(ev.Attacker == ev.Player) return;
-        if(ev.Attacker.Faction == ev.Player.Faction) return;
-        if (ev.Player.HumeShield <= 0)
+        if (ev.Player.IsDestroyed || ev.Player.RoleBase is not Scp3114Role role) return;
+        if (role.CurIdentity.Status != Scp3114Identity.DisguiseStatus.Active) return;
+        if (Round.Duration >= TimeSpan.FromSeconds(Core.Instance.Config.Scp3114PreventRevealTime)) return;
+        if (ev.Attacker == null || ev.Attacker.IsDestroyed || ev.Attacker.IsHost || !ev.Attacker.IsPlayer) return;
+        if (ev.Attacker == ev.Player || ev.Attacker.Faction == ev.Player.Faction) return;
+
+        // Hurt also fires when ApplyDamage does nothing. Require damage that was actually applied.
+        if (ev.DamageHandler is not StandardDamageHandler damage || !(damage.Damage > 0f) || !(damage.TotalDamageDealt > 0f)) return;
+        Scp3114Data data = ev.Player.GetDataStore<Scp3114Data>();
+
+        if (Core.Instance.Config.Scp3114AllowEarlyRevealOnDamage && (damage.TotalDamageDealt > 5f) && !data.CanRevealEarly)
         {
-            Scp3114Role scp3114Role = ev.Player.RoleBase as Scp3114Role;
-            if(scp3114Role == null) return;
-            if(scp3114Role.CurIdentity.Status != Scp3114Identity.DisguiseStatus.Active) return;
-            scp3114Role._identity.RemainingDuration.Remaining = 0; // Force the reveal
-            ev.Player.GetDataStore<Scp3114Data>().CanRevealEarly = true;
+            data.CanRevealEarly = true;
+            data.EarlyRevealLifeId = role.UniqueLifeIdentifier;
+            ev.Player.SendHint(Core.Instance.Config.Translate("scp3114_allow_reveal_hint"), 5f);
+        }
+        
+        if (ev.Player.HumeShield <= 0f && data.CanRevealEarly)
+        {
+            // Let the native cooldown raise the cancellable forced-reveal event on its next update.
+            role._identity.RemainingDuration.Remaining = 0;
+            ev.Player.SendHint(Core.Instance.Config.Translate("scp3114_force_reveal_hint"), 5f);
             return;
         }
-        if((ev.DamageHandler as StandardDamageHandler)?.Damage <= 5) return;
-        ev.Player.GetDataStore<Scp3114Data>().CanRevealEarly = true;
     }
-    
+
     public void RegisterEvents()
     {
-        // Register events here
         LabApi.Events.Handlers.Scp3114Events.Revealing += OnRevealing;
         LabApi.Events.Handlers.PlayerEvents.Hurt += OnHurt;
     }
-    
+
     public void UnregisterEvents()
     {
-        // Unregister events here
         LabApi.Events.Handlers.Scp3114Events.Revealing -= OnRevealing;
         LabApi.Events.Handlers.PlayerEvents.Hurt -= OnHurt;
     }

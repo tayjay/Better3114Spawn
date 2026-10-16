@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
+
 
 namespace Better3114Spawn;
 
@@ -12,4 +14,19 @@ public class Config
      
      [Description("Should allow Scp3114 to reveal itself early if it's been damaged by a human? Default is true.")]
      public bool Scp3114AllowEarlyRevealOnDamage { get; set; } = true;
+
+     [Description("Translations for hints and messages. {0} will be replaced with remaining disguise time.")]
+     public Dictionary<string, string> Translations { get; set; } = new Dictionary<string, string>
+     {
+          { "scp3114_blend_in_hint", "Blend in for {0} before you can attack." },
+          { "scp3114_wait_hint", "You must wait {0} before revealing." },
+          { "scp3114_allow_reveal_hint", "You may now reveal yourself." },
+          { "scp3114_force_reveal_hint", "You have been revealed!" }
+     };
+
+     public string Translate(string key, params object[] args)
+     {
+          string translation = Translations.ContainsKey(key) ? Translations[key] : key;
+          return string.Format(translation, args);
+     }
 }
