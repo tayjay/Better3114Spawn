@@ -31,7 +31,7 @@ public class Core : Plugin<Config>
     }
 
     public override string Name => "Better3114Spawn";
-    public override string Description => "Make Scp3114 spawn with humans like Scp953";
+    public override string Description => "Make Scp3114 spawn with humans like Scp953.";
     public override string Author => "TayTay";
     public override Version Version => typeof(Core).Assembly.GetName().Version;
     public override Version RequiredApiVersion => new(1, 1, 7);
