@@ -1,4 +1,5 @@
 ﻿using System;
+using LabApi.Features.Stores;
 using LabApi.Loader.Features.Plugins;
 
 namespace Better3114Spawn;
@@ -16,6 +17,8 @@ public class Core : Plugin<Config>
         _spawnHandler = new SpawnHandler();
         _roleHandler = new RoleHandler();
         
+        CustomDataStoreManager.RegisterStore<Scp3114Data>();
+        
         _spawnHandler.RegisterEvents();
         _roleHandler.RegisterEvents();
     }
@@ -24,6 +27,8 @@ public class Core : Plugin<Config>
     {
         _spawnHandler.UnregisterEvents();
         _roleHandler.UnregisterEvents();
+
+        CustomDataStoreManager.UnregisterStore<Scp3114Data>();
         
         _spawnHandler = null;
         _roleHandler = null;
